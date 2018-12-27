@@ -1,0 +1,12 @@
+{
+  "name": "tencentcloud-sdk-ts-generator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "esprima": "^4.0.1"
+  },
+  "devDependencies": {
+    "tencentcloud-sdk-nodejs": "^3.0.41"
+  }
+}
