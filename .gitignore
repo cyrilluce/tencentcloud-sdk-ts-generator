@@ -2,3 +2,4 @@ node_modules
 outputs/*
 .vscode
 yarn.lock
+!.gitkeep
