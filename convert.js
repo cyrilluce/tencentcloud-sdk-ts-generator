@@ -3,16 +3,30 @@ const fs = require("fs");
 const path = require("path");
 
 const sdkPath = `./node_modules/tencentcloud-sdk-nodejs`;
+const bizSdkPath = path.join(sdkPath, `tencentcloud`);
 const outPath = `./outputs`;
 
-module.exports = function parse(sdk, version) {
-  const modelPath = path.join(
-    sdkPath,
-    `tencentcloud`,
-    sdk,
-    version,
-    `models.js`
-  );
+module.exports = function parseAll(optionalMap = {}) {
+  fs.readdir(bizSdkPath, (err, files) => {
+    for (const file of files) {
+      const stat = fs.lstatSync(path.join(bizSdkPath, file));
+      if (!stat.isDirectory()) {
+        continue;
+      }
+      console.log(`processing ${file}`);
+      convert(file, optionalMap[file]);
+    }
+    console.log(`finished`);
+  });
+};
+
+function convert(sdk, optionalMap = {}) {
+  const files = fs.readdirSync(path.join(bizSdkPath, sdk));
+  const version = files.find(f => /^v\d+$/.test(f));
+  if (!version) {
+    return;
+  }
+  const modelPath = path.join(bizSdkPath, sdk, version, `models.js`);
 
   const modelsResult = esprima.parseScript(
     fs.readFileSync(modelPath).toString(),
@@ -38,7 +52,7 @@ module.exports = function parse(sdk, version) {
   }
 
   const tsOut = fs.createWriteStream(path.join(outPath, `${sdk}.ts`));
-  tsOut.write(`// Auto-generate by tencentcloud-sdk-ts-generator\n\n`)
+  tsOut.write(`// Auto-generate by tencentcloud-sdk-ts-generator\n\n`);
   const requests = new Set();
   const responses = new Set();
   // 开始解析输出
@@ -46,7 +60,7 @@ module.exports = function parse(sdk, version) {
     switch (statement.type) {
       case "ClassDeclaration":
         // class
-        parseClassDeclaration(statement);
+        parseClassDeclaration(statement, optionalMap);
         break;
     }
   }
@@ -66,7 +80,7 @@ module.exports = function parse(sdk, version) {
   }
   tsOut.write(`}\n\n`);
 
-  function parseClassDeclaration(o) {
+  function parseClassDeclaration(o, optionalMap) {
     const {
       id: { /** 类名 */ name: className },
       body: { body: classBody }
@@ -88,6 +102,8 @@ module.exports = function parse(sdk, version) {
 
     tsOut.write(`export interface ${className}{
 `);
+
+    optionalMap = optionalMap[className] || {};
 
     // 解析构造函数中的声明
     for (const statement of classBody) {
@@ -121,12 +137,13 @@ module.exports = function parse(sdk, version) {
         const [, desc, type] = comment.match(
           /([\s\S\r\n]*)@type \{(.*?) \|\| null\}/
         );
+        const optional = propertyName in optionalMap ? "?" : "";
         tsOut.write(`  /** ${desc.replace(/(^|[\r\n]+)\s*\*+/g, "")} */
-  ${propertyName}: ${type.replace(/^Array\.<(.*)>$/, "$1[]")}
+  ${propertyName}${optional}: ${type.replace(/^Array\.<(.*)>$/, "$1[]")}
 `);
       }
     }
 
     tsOut.write(`}\n\n`);
   }
-};
+}
