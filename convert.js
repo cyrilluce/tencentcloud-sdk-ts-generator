@@ -38,6 +38,7 @@ module.exports = function parse(sdk, version) {
   }
 
   const tsOut = fs.createWriteStream(path.join(outPath, `${sdk}.ts`));
+  tsOut.write(`// Auto-generate by tencentcloud-sdk-ts-generator\n\n`)
   const requests = new Set();
   const responses = new Set();
   // 开始解析输出
@@ -51,10 +52,8 @@ module.exports = function parse(sdk, version) {
   }
 
   // 生成统一调用出口
-  tsOut.write(`class API{
-  request(action, params): any{
-    // TODO
-  }
+  tsOut.write(`export default abstract class Facade_${sdk}{
+  abstract request(action, params)
 `);
   for (let action of requests) {
     if (!responses.has(action)) {
@@ -65,8 +64,7 @@ module.exports = function parse(sdk, version) {
   }
 `);
   }
-  tsOut.write(`}
-`);
+  tsOut.write(`}\n\n`);
 
   function parseClassDeclaration(o) {
     const {
@@ -88,8 +86,7 @@ module.exports = function parse(sdk, version) {
       }
     }
 
-    tsOut.write(`
-interface ${className}{
+    tsOut.write(`export interface ${className}{
 `);
 
     // 解析构造函数中的声明
@@ -130,7 +127,6 @@ interface ${className}{
       }
     }
 
-    tsOut.write(`}
-`);
+    tsOut.write(`}\n\n`);
   }
 };
